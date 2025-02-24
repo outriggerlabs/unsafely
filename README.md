@@ -1,9 +1,13 @@
-# unsafely
-
-⚠️ This package is only intended for testing, not for production use. ⚠️
+# [unsafely](https://github.com/outriggerlabs/unsafely)
 
 This package provides a set of functions that can be used for testing and
-analyzing Go types.
+analyzing Go types, notably marshaling and unmarshaling JSON (including
+unexported and interface fields, non-primitive map keys, and pointer
+reference tracking).
+
+* [Documentation](https://pkg.go.dev/github.com/outriggerlabs/unsafely)
+
+⚠️ This package is only intended for testing, not for production use. ⚠️
 
 ## MarshalJSON / UnmarshalJSON
 
@@ -30,7 +34,7 @@ The JSON produced by these functions is *not* intended to be a drop-in
 replacement for any other JSON package. The JSON may contain additional
 information necessary for reconstructing the structs, and is subject to change.
 
-See the examples in [jsonExamples_test.go](jsonExamples_test.go) for how special
+See [these examples](https://pkg.go.dev/github.com/outriggerlabs/unsafely#MarshalJSON) for how special
 cases are handled.
 
 Intended use cases:
