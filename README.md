@@ -65,3 +65,7 @@ Limitations:
 name and string representation, e.g, two structs with the same name defined in
 different functions.
 - None of the functions in this package are concurrency-safe.
+
+---
+
+View on Github at https://github.com/outriggerlabs/unsafely.
