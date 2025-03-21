@@ -1,7 +1,6 @@
 # [unsafely](https://github.com/outriggerlabs/unsafely)
 
-This package provides a set of functions that can be used for testing and
-analyzing Go types, notably marshaling and unmarshaling JSON (including
+Functions for working with Golang values, notably marshaling and unmarshaling JSON (including
 unexported and interface fields, non-primitive map keys, and pointer
 reference tracking).
 
