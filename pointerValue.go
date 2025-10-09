@@ -37,7 +37,7 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 	errProps := errProps()
 
 	if inV.Kind() != reflect.Pointer {
-		return reflect.Value{}, errProps().Annotate(fmt.Errorf(
+		return reflect.Value{}, errProps.Annotate(fmt.Errorf(
 			"expected value to be a pointer; received %v", inV.Kind(),
 		))
 	}
@@ -51,7 +51,7 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 	// The expectation is that we only see zero pointers iff the input is nil.
 	// We don't cache zero pointers.
 	if isNil != (inPtr == zeroPointer) {
-		return reflect.Value{}, errProps().Annotate(fmt.Errorf(
+		return reflect.Value{}, errProps.Annotate(fmt.Errorf(
 			"assertion failed; isNil: %v, inPtr: %v", inV.IsNil(), inPtr,
 		))
 	}
@@ -68,7 +68,7 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 		// Track the pointers that we're processing to ensure we don't have any data
 		// cycles.
 		if _, pending := s.pendingPointers[inPtr]; pending {
-			return reflect.Value{}, errProps().Annotate(fmt.Errorf(
+			return reflect.Value{}, errProps.Annotate(fmt.Errorf(
 				"cycle detected; structs with cyclic data are not supported",
 			))
 		}
@@ -77,7 +77,7 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 		// Encode the underlying value.
 		outV, err := s.encode(inV.Elem())
 		if err != nil {
-			return reflect.Value{}, errProps().Extend(err)
+			return reflect.Value{}, errProps.Extend(err)
 		}
 
 		// We're done processing this pointer, so stop tracking it.
@@ -85,7 +85,7 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 
 		value, err = s.jsonMarshalInternal(outV.Interface())
 		if err != nil {
-			return reflect.Value{}, errProps().Extend(err)
+			return reflect.Value{}, errProps.Extend(err)
 		}
 	}
 
@@ -113,13 +113,13 @@ func (s *JSONDecoder) decodeFromPointerValue(
 
 	pv, ok := pvV.Interface().(pointerValue)
 	if !ok {
-		return errProps().Annotate(fmt.Errorf(
+		return errProps.Annotate(fmt.Errorf(
 			"expected inV to be a *pointerValue; received %T", pvV.Interface(),
 		))
 	}
 
 	if outPtrV.Kind() != reflect.Pointer {
-		return errProps().Annotate(fmt.Errorf(
+		return errProps.Annotate(fmt.Errorf(
 			"expected outV to be a pointer; received %v", outPtrV.Kind(),
 		))
 	}
@@ -138,18 +138,18 @@ func (s *JSONDecoder) decodeFromPointerValue(
 	// Unmarshal the underlying JSON value into the encoded type.
 	encodedT, err := encodedTypeFor(outPtrV.Type().Elem())
 	if err != nil {
-		return errProps().Extend(err)
+		return errProps.Extend(err)
 	}
 
 	encodedPtrV := reflect.New(encodedT)
 	if err := json.Unmarshal(pv.Value, encodedPtrV.Interface()); err != nil {
-		return errProps().Extend(err)
+		return errProps.Extend(err)
 	}
 
 	// Instantiate the pointer, then decodeTo the value.
 	setField(outPtrV, reflect.New(outPtrV.Type().Elem()))
 	if err := s.decodeTo(encodedPtrV.Elem(), outPtrV.Elem()); err != nil {
-		return errProps().Extend(err)
+		return errProps.Extend(err)
 	}
 
 	// Store the decoded value for the pointer so we can reuse it later.

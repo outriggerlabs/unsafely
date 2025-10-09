@@ -1,4 +1,4 @@
-package unsafely
+package typeutil
 
 import (
 	perr "github.com/outriggerlabs/errors"

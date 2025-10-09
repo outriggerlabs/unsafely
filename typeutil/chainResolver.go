@@ -1,8 +1,8 @@
 package typeutil
 
 import (
-	"reflect"
 	"fmt"
+	"reflect"
 )
 
 type chainResolver struct {
@@ -29,6 +29,6 @@ func (s chainResolver) ResolveType(
 		}
 	}
 
-	return nil, fmt.Errorf("chainResolver.ResolveType(): could not find type for "+
-		"pkgPath: %s, typeName: %s, typeString: %s", pkgPath, typeName, typeString)
+	return nil, errProps().Annotate(fmt.Errorf("could not find type for "+
+		"pkgPath: %s, typeName: %s, typeString: %s", pkgPath, typeName, typeString))
 }

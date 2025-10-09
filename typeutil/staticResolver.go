@@ -58,8 +58,8 @@ func (s StaticResolver) ResolveType(pkgPath, typeName, typeString string) (refle
 	}
 
 	if typ == nil {
-		return nil, fmt.Errorf("StaticResolver.ResolveType(): could not find type for "+
-			"pkgPath: %s, typeName: %s, typeString: %s", pkgPath, typeName, typeString)
+		return nil, errProps().Annotate(fmt.Errorf("could not find type for "+
+			"pkgPath: %s, typeName: %s, typeString: %s", pkgPath, typeName, typeString))
 	}
 
 	return typ, nil

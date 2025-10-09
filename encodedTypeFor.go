@@ -50,7 +50,7 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Chan ||
 		kind == reflect.Func ||
 		kind == reflect.UnsafePointer {
-		return nil, errProps().Annotate(fmt.Errorf("unsupported kind %v for %v", inputT.Kind(), inputT))
+		return nil, errProps.Annotate(fmt.Errorf("unsupported kind %v for %v", inputT.Kind(), inputT))
 	}
 
 	// Interfaces are represented using a struct to track the underlying type.
@@ -68,7 +68,7 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Slice {
 		elemType, err := encodedTypeFor(inputT.Elem())
 		if err != nil {
-			return nil, errProps().Extend(err)
+			return nil, errProps.Extend(err)
 		}
 
 		return reflect.SliceOf(elemType), nil
@@ -77,7 +77,7 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Array {
 		elemType, err := encodedTypeFor(inputT.Elem())
 		if err != nil {
-			return nil, errProps().Extend(err)
+			return nil, errProps.Extend(err)
 		}
 
 		return reflect.ArrayOf(inputT.Len(), elemType), nil
@@ -87,12 +87,12 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Map {
 		keyType, err := encodedTypeFor(inputT.Key())
 		if err != nil {
-			return nil, errProps().Extend(err)
+			return nil, errProps.Extend(err)
 		}
 
 		valueType, err := encodedTypeFor(inputT.Elem())
 		if err != nil {
-			return nil, errProps().Extend(err)
+			return nil, errProps.Extend(err)
 		}
 
 		// JSON maps cannot have struct keys, so we use string keys instead.
@@ -115,7 +115,7 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 
 	// At this point, we should have handled everything except structs.
 	if kind != reflect.Struct {
-		return nil, errProps().Annotate(fmt.Errorf(
+		return nil, errProps.Annotate(fmt.Errorf(
 			"unhandled non-struct kind %v of %v",
 			kind, inputT,
 		))
@@ -167,14 +167,14 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 
 		// Check for duplicate JSON field names.
 		if existingField, exists := usedJsonNames[jsonName]; exists {
-			return nil, errProps().Annotate(fmt.Errorf("duplicate JSON field name %q (struct fields %q and %q)",
+			return nil, errProps.Annotate(fmt.Errorf("duplicate JSON field name %q (struct fields %q and %q)",
 				jsonName, existingField, field.Name))
 		}
 		usedJsonNames[jsonName] = field.Name
 
 		newType, err := encodedTypeFor(field.Type)
 		if err != nil {
-			return nil, errProps().Extend(err)
+			return nil, errProps.Extend(err)
 		}
 
 		field.Type = newType

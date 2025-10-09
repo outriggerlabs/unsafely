@@ -3,7 +3,7 @@ module github.com/outriggerlabs/unsafely
 go 1.25.0
 
 require (
-	github.com/outriggerlabs/errors v0.0.0-20251009161052-1e5c2b2162c7
+	github.com/outriggerlabs/errors v0.0.0-20251009192526-c9cfad11f387
 	github.com/stretchr/testify v1.11.1
 )
 

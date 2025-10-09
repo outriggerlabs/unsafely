@@ -1,4 +1,4 @@
-package unsafely
+package typeutil
 
 import (
 	"errors"
@@ -17,9 +17,9 @@ func TestErrProps(t *testing.T) {
 		extendedError  = errProps.Extend(baseError)
 	)
 
-	assert.Equal(t, "unsafely.TestErrProps", perr.Property[string](annotatedError, "op"))
+	assert.Equal(t, "typeutil.TestErrProps", perr.Property[string](annotatedError, "op"))
 	assert.Contains(t, annotatedError.Error(), "test error")
 
-	assert.Equal(t, "unsafely.TestErrProps", perr.Property[string](extendedError, "op"))
+	assert.Equal(t, "typeutil.TestErrProps", perr.Property[string](extendedError, "op"))
 	assert.Contains(t, extendedError.Error(), "test error")
 }
