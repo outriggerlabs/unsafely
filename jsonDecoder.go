@@ -43,6 +43,8 @@ func NewJSONDecoder(options ...UnmarshalJSONOption) *JSONDecoder {
 //
 // See the package notes for restrictions, limitations and options.
 func (s *JSONDecoder) Decode(b []byte, outPtr any) error {
+	errProps := errProps()
+
 	var wrapper encodedJSONWrapper
 	if err := json.Unmarshal(b, &wrapper); err != nil {
 		return fmt.Errorf("JSONDecoder.Decode(): %w", err)
@@ -54,7 +56,7 @@ func (s *JSONDecoder) Decode(b []byte, outPtr any) error {
 	)
 
 	if outPtrT.Kind() != reflect.Pointer {
-		return fmt.Errorf("JSONDecoder.Decode(): value must be a pointer; received %v", outPtrT.Kind())
+		return errProps().Annotate(fmt.Errorf("value must be a pointer; received %v", outPtrT.Kind()))
 	}
 
 	var (
@@ -64,7 +66,7 @@ func (s *JSONDecoder) Decode(b []byte, outPtr any) error {
 
 	encodedT, err := encodedTypeFor(outT)
 	if err != nil {
-		return fmt.Errorf("JSONDecoder.Decode(): %w", err)
+		return errProps().Extend(err)
 	}
 
 	var (
