@@ -36,6 +36,8 @@ func encodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 // Dynamically constructs an encoded type with exported fields that mirrors the
 // input type.
 func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
+	errProps := errProps()
+
 	// If the input type is a json.Marshaler, we store the raw JSON output of the
 	// existing marshaling behavior.
 	if inputT.Implements(jsonMarshalerType) {
@@ -48,7 +50,7 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Chan ||
 		kind == reflect.Func ||
 		kind == reflect.UnsafePointer {
-		return nil, fmt.Errorf("createEncodedTypeFor: unsupported kind %v for %v", inputT.Kind(), inputT)
+		return nil, errProps().Annotate(fmt.Errorf("unsupported kind %v for %v", inputT.Kind(), inputT))
 	}
 
 	// Interfaces are represented using a struct to track the underlying type.
@@ -66,7 +68,7 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Slice {
 		elemType, err := encodedTypeFor(inputT.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("createEncodedTypeFor: %w", err)
+			return nil, errProps().Extend(err)
 		}
 
 		return reflect.SliceOf(elemType), nil
@@ -75,7 +77,7 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Array {
 		elemType, err := encodedTypeFor(inputT.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("createEncodedTypeFor: %w", err)
+			return nil, errProps().Extend(err)
 		}
 
 		return reflect.ArrayOf(inputT.Len(), elemType), nil
@@ -85,12 +87,12 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 	if kind == reflect.Map {
 		keyType, err := encodedTypeFor(inputT.Key())
 		if err != nil {
-			return nil, fmt.Errorf("createEncodedTypeFor: %w", err)
+			return nil, errProps().Extend(err)
 		}
 
 		valueType, err := encodedTypeFor(inputT.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("createEncodedTypeFor: %w", err)
+			return nil, errProps().Extend(err)
 		}
 
 		// JSON maps cannot have struct keys, so we use string keys instead.
@@ -113,10 +115,10 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 
 	// At this point, we should have handled everything except structs.
 	if kind != reflect.Struct {
-		return nil, fmt.Errorf(
-			"createEncodedTypeFor: unhandled non-struct kind %v of %v",
+		return nil, errProps().Annotate(fmt.Errorf(
+			"unhandled non-struct kind %v of %v",
 			kind, inputT,
-		)
+		))
 	}
 
 	// Dynamically create a struct to mirror the input type.
@@ -165,14 +167,14 @@ func createEncodedTypeFor(inputT reflect.Type) (reflect.Type, error) {
 
 		// Check for duplicate JSON field names.
 		if existingField, exists := usedJsonNames[jsonName]; exists {
-			return nil, fmt.Errorf("createEncodedTypeFor(): duplicate JSON field name %q (struct fields %q and %q)",
-				jsonName, existingField, field.Name)
+			return nil, errProps().Annotate(fmt.Errorf("duplicate JSON field name %q (struct fields %q and %q)",
+				jsonName, existingField, field.Name))
 		}
 		usedJsonNames[jsonName] = field.Name
 
 		newType, err := encodedTypeFor(field.Type)
 		if err != nil {
-			return nil, fmt.Errorf("createEncodedTypeFor: %w", err)
+			return nil, errProps().Extend(err)
 		}
 
 		field.Type = newType

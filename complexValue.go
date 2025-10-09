@@ -19,10 +19,12 @@ func isComplexValueType(t reflect.Type) bool {
 
 // Encodes the value to a complexValue object.
 func encodeToComplexValue(inputV reflect.Value) (reflect.Value, error) {
+	errProps := errProps()
+
 	if inputV.Kind() != reflect.Complex128 && inputV.Kind() != reflect.Complex64 {
-		return reflect.Value{}, fmt.Errorf(
-			"encodeToComplexValue: expected value to be a complex number; received %v", inputV.Kind(),
-		)
+		return reflect.Value{}, errProps().Annotate(fmt.Errorf(
+			"expected value to be a complex number; received %v", inputV.Kind(),
+		))
 	}
 	var (
 		input = inputV.Complex()
@@ -37,12 +39,14 @@ func encodeToComplexValue(inputV reflect.Value) (reflect.Value, error) {
 
 // Decodes the complexValue object and writes the output value.
 func decodeFromComplexValue(encodedV reflect.Value, outV reflect.Value) error {
+	errProps := errProps()
+
 	cv, ok := encodedV.Interface().(complexValue)
 	if !ok {
-		return fmt.Errorf(
-			"decodeFromComplexValue: expected encodedV to be a complexValue; received %T",
+		return errProps().Annotate(fmt.Errorf(
+			"expected encodedV to be a complexValue; received %T",
 			encodedV.Interface(),
-		)
+		))
 	}
 
 	decoded := complex(cv.Real, cv.Imag)
@@ -57,6 +61,6 @@ func decodeFromComplexValue(encodedV reflect.Value, outV reflect.Value) error {
 		return nil
 
 	default:
-		return fmt.Errorf("decodeFromComplexValue: unsupported kind for outV: %v", outV.Kind())
+		return errProps().Annotate(fmt.Errorf("unsupported kind for outV: %v", outV.Kind()))
 	}
 }

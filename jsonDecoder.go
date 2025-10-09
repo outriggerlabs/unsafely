@@ -47,7 +47,7 @@ func (s *JSONDecoder) Decode(b []byte, outPtr any) error {
 
 	var wrapper encodedJSONWrapper
 	if err := json.Unmarshal(b, &wrapper); err != nil {
-		return fmt.Errorf("JSONDecoder.Decode(): %w", err)
+		return errProps().Extend(err)
 	}
 
 	var (
@@ -76,12 +76,12 @@ func (s *JSONDecoder) Decode(b []byte, outPtr any) error {
 
 	// Unmarshal the JSON into the encoded value.
 	if err := json.Unmarshal(wrapper.Value, encodedPtrV.Interface()); err != nil {
-		return fmt.Errorf("JSONDecoder.Decode(): %w", err)
+		return errProps().Extend(err)
 	}
 
 	// Decode the encoded value into the output value.
 	if err := s.decodeTo(encodedV, outV); err != nil {
-		return fmt.Errorf("JSONDecoder.Decode(): %w", err)
+		return errProps().Extend(err)
 	}
 
 	return nil
@@ -89,6 +89,8 @@ func (s *JSONDecoder) Decode(b []byte, outPtr any) error {
 
 // Copies from the exported value to the original value.
 func (s *JSONDecoder) decodeTo(encodedV, decodedV reflect.Value) error {
+	errProps := errProps()
+
 	var (
 		encodedT = encodedV.Type()
 		decodedT = decodedV.Type()
@@ -105,9 +107,9 @@ func (s *JSONDecoder) decodeTo(encodedV, decodedV reflect.Value) error {
 		decodedPtr := decodedV.Addr().Interface()
 
 		if err := json.Unmarshal(encodedMessage, decodedPtr); err != nil {
-			return fmt.Errorf("decodeTo(): failed to unmarshal to type %s, raw message: %s, err: %w",
+			return errProps().Annotate(fmt.Errorf("failed to unmarshal to type %s, raw message: %s, err: %w",
 				decodedT.String(), string(encodedMessage), err,
-			)
+			))
 		}
 
 		return nil
@@ -122,7 +124,7 @@ func (s *JSONDecoder) decodeTo(encodedV, decodedV reflect.Value) error {
 	if isInterfaceValueType(encodedT) {
 		decodedOutputV, err := s.decodeFromInterfaceValue(encodedV)
 		if err != nil {
-			return fmt.Errorf("decodeTo(): %w", err)
+			return errProps().Extend(err)
 		}
 
 		// A zero value implies the interface was nil, which is the default value.
@@ -139,10 +141,10 @@ func (s *JSONDecoder) decodeTo(encodedV, decodedV reflect.Value) error {
 	}
 
 	if encodedKind != decodedKind {
-		return fmt.Errorf(
-			"decodeTo(): expected values to be the same kind; received %v and %v",
+		return errProps().Annotate(fmt.Errorf(
+			"expected values to be the same kind; received %v and %v",
 			encodedV.Type(), decodedV.Type(),
-		)
+		))
 	}
 
 	if decodedKind == reflect.Map {
@@ -160,7 +162,7 @@ func (s *JSONDecoder) decodeTo(encodedV, decodedV reflect.Value) error {
 
 		encodedKeyT, err := encodedTypeFor(decodedKeyT)
 		if err != nil {
-			return fmt.Errorf("decodeTo(): %w", err)
+			return errProps().Extend(err)
 		}
 
 		encodedMapIter := encodedV.MapRange()
@@ -184,12 +186,12 @@ func (s *JSONDecoder) decodeTo(encodedV, decodedV reflect.Value) error {
 
 				// Unmarshal and decode the key from the JSON string.
 				if err := json.Unmarshal(encodedKeyBytes, encodedKeyPtr); err != nil {
-					return fmt.Errorf("decodeTo(): %w", err)
+					return errProps().Extend(err)
 				}
 
 				decodedKeyV := reflect.New(decodedKeyT).Elem()
 				if err := s.decodeTo(encodedKeyV, decodedKeyV); err != nil {
-					return fmt.Errorf("decodeTo(): %w", err)
+					return errProps().Extend(err)
 				}
 
 				decodedKey = decodedKeyV
@@ -198,7 +200,7 @@ func (s *JSONDecoder) decodeTo(encodedV, decodedV reflect.Value) error {
 			// Decode the map value.
 			decodedVal := reflect.New(decodedValT).Elem()
 			if err := s.decodeTo(encodedVal, decodedVal); err != nil {
-				return fmt.Errorf("decodeTo(): %w", err)
+				return errProps().Extend(err)
 			}
 
 			// Set the key and value on the decoded map.

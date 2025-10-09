@@ -9,6 +9,8 @@ import (
 //
 // The copyFn is either encodeTo or decodeTo.
 func copyCommon(copyFn func(fromV, toV reflect.Value) error, fromV, toV reflect.Value) error {
+	errProps := errProps()
+
 	var (
 		fromT    = fromV.Type()
 		toT      = toV.Type()
@@ -18,9 +20,9 @@ func copyCommon(copyFn func(fromV, toV reflect.Value) error, fromV, toV reflect.
 	// No conversion is needed for int, string, etc.
 	if isSimplePrimitive(fromKind) {
 		if fromT != toT {
-			return fmt.Errorf(
-				"copyCommon(): primitive values must be the same type; received %v and %v",
-				fromT, toT)
+			return errProps().Annotate(fmt.Errorf(
+				"primitive values must be the same type; received %v and %v",
+				fromT, toT))
 		}
 
 		setField(toV, fromV)
@@ -34,11 +36,13 @@ func copyCommon(copyFn func(fromV, toV reflect.Value) error, fromV, toV reflect.
 	}
 
 	// All other cases must be handled by the caller.
-	return fmt.Errorf("copyCommon(): unexpected kind: %v", fromKind)
+	return errProps().Annotate(fmt.Errorf("unexpected kind: %v", fromKind))
 }
 
 // Copies an array or slice of values. Encoding/decoding is delegated to the copyFn.
 func copyArrayLike(copyFn func(fromV, toV reflect.Value) error, fromV, toV reflect.Value) error {
+	errProps := errProps()
+
 	var (
 		fromT    = fromV.Type()
 		toT      = toV.Type()
@@ -47,13 +51,13 @@ func copyArrayLike(copyFn func(fromV, toV reflect.Value) error, fromV, toV refle
 	)
 
 	if fromKind != toKind {
-		return fmt.Errorf(
-			"copyArrayLike(): values must be the same kind; received %v and %v",
-			fromKind, toKind)
+		return errProps().Annotate(fmt.Errorf(
+			"values must be the same kind; received %v and %v",
+			fromKind, toKind))
 	}
 
 	if toKind != reflect.Array && toKind != reflect.Slice {
-		return fmt.Errorf("copyArrayLike(): must be array or slice, received %v", toKind)
+		return errProps().Annotate(fmt.Errorf("must be array or slice, received %v", toKind))
 	}
 
 	// Allocate slice, if necessary. This preserves nil slices.
@@ -81,6 +85,8 @@ func copyStruct(
 	fromV, toV reflect.Value,
 	isEncode bool,
 ) error {
+	errProps := errProps()
+
 	var (
 		fromT    = fromV.Type()
 		toT      = toV.Type()
@@ -89,9 +95,9 @@ func copyStruct(
 	)
 
 	if fromKind != reflect.Struct || toKind != reflect.Struct {
-		return fmt.Errorf(
-			"copyStruct: both values must be structs; received %v and %v",
-			fromV.Type(), toV.Type())
+		return errProps().Annotate(fmt.Errorf(
+			"both values must be structs; received %v and %v",
+			fromV.Type(), toV.Type()))
 	}
 
 	var originalV, encodedV reflect.Value
@@ -111,15 +117,15 @@ func copyStruct(
 		// Get the original field name from the original tag
 		originalFieldName := encodedFieldT.Tag.Get("original")
 		if originalFieldName == "" {
-			return fmt.Errorf("copyStruct(): could not find original field name for field %s", encodedFieldT.Name)
+			return errProps().Annotate(fmt.Errorf("could not find original field name for field %s", encodedFieldT.Name))
 		}
 
 		// Look up the field in the original struct
 		originalFieldV := originalV.FieldByName(originalFieldName)
 		if !originalFieldV.IsValid() {
-			return fmt.Errorf(
-				"copyStruct(): could not find original field %s for field %s",
-				originalFieldName, encodedFieldT.Name)
+			return errProps().Annotate(fmt.Errorf(
+				"could not find original field %s for field %s",
+				originalFieldName, encodedFieldT.Name))
 		}
 
 		// The original field may be unexported, so we may need to get an exported copy.
@@ -133,7 +139,7 @@ func copyStruct(
 		}
 
 		if err := copyFn(fromFieldV, toFieldV); err != nil {
-			return fmt.Errorf("copyStruct(): %w", err)
+			return errProps().Extend(err)
 		}
 	}
 
