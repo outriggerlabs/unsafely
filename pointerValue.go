@@ -34,10 +34,12 @@ type pointerValue struct {
 // If the pointer has been seen before, a encodeTo of the existing pointerValue
 // object may be returned, rather than re-marshaling the underlying value.
 func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value, err error) {
+	errProps := errProps()
+
 	if inV.Kind() != reflect.Pointer {
-		return reflect.Value{}, fmt.Errorf(
-			"encodeToPointerValue: expected value to be a pointer; received %v", inV.Kind(),
-		)
+		return reflect.Value{}, errProps.Annotate(fmt.Errorf(
+			"expected value to be a pointer; received %v", inV.Kind(),
+		))
 	}
 
 	var (
@@ -49,9 +51,9 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 	// The expectation is that we only see zero pointers iff the input is nil.
 	// We don't cache zero pointers.
 	if isNil != (inPtr == zeroPointer) {
-		return reflect.Value{}, fmt.Errorf(
-			"encodeToPointerValue: assertion failed; isNil: %v, inPtr: %v", inV.IsNil(), inPtr,
-		)
+		return reflect.Value{}, errProps.Annotate(fmt.Errorf(
+			"assertion failed; isNil: %v, inPtr: %v", inV.IsNil(), inPtr,
+		))
 	}
 
 	// Marshal the underlying type; default to null.
@@ -66,16 +68,16 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 		// Track the pointers that we're processing to ensure we don't have any data
 		// cycles.
 		if _, pending := s.pendingPointers[inPtr]; pending {
-			return reflect.Value{}, fmt.Errorf(
-				"encodeToPointerValue: cycle detected; structs with cyclic data are not supported",
-			)
+			return reflect.Value{}, errProps.Annotate(fmt.Errorf(
+				"cycle detected; structs with cyclic data are not supported",
+			))
 		}
 		s.pendingPointers[inPtr] = struct{}{}
 
 		// Encode the underlying value.
 		outV, err := s.encode(inV.Elem())
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf("encodeToPointerValue: %w", err)
+			return reflect.Value{}, errProps.Extend(err)
 		}
 
 		// We're done processing this pointer, so stop tracking it.
@@ -83,7 +85,7 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 
 		value, err = s.jsonMarshalInternal(outV.Interface())
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf("encodeToPointerValue: %w", err)
+			return reflect.Value{}, errProps.Extend(err)
 		}
 	}
 
@@ -107,17 +109,19 @@ func (s *JSONEncoder) encodeToPointerValue(inV reflect.Value) (out reflect.Value
 func (s *JSONDecoder) decodeFromPointerValue(
 	pvV reflect.Value, outPtrV reflect.Value,
 ) (err error) {
+	errProps := errProps()
+
 	pv, ok := pvV.Interface().(pointerValue)
 	if !ok {
-		return fmt.Errorf(
-			"convertFromPointerValue: expected inV to be a *pointerValue; received %T", pvV.Interface(),
-		)
+		return errProps.Annotate(fmt.Errorf(
+			"expected inV to be a *pointerValue; received %T", pvV.Interface(),
+		))
 	}
 
 	if outPtrV.Kind() != reflect.Pointer {
-		return fmt.Errorf(
-			"convertFromPointerValue: expected outV to be a pointer; received %v", outPtrV.Kind(),
-		)
+		return errProps.Annotate(fmt.Errorf(
+			"expected outV to be a pointer; received %v", outPtrV.Kind(),
+		))
 	}
 
 	// Short-circuit null, since outPtrV should already be a null pointer.
@@ -134,18 +138,18 @@ func (s *JSONDecoder) decodeFromPointerValue(
 	// Unmarshal the underlying JSON value into the encoded type.
 	encodedT, err := encodedTypeFor(outPtrV.Type().Elem())
 	if err != nil {
-		return fmt.Errorf("convertFromPointerValue: %w", err)
+		return errProps.Extend(err)
 	}
 
 	encodedPtrV := reflect.New(encodedT)
 	if err := json.Unmarshal(pv.Value, encodedPtrV.Interface()); err != nil {
-		return fmt.Errorf("convertFromPointerValue: %w", err)
+		return errProps.Extend(err)
 	}
 
 	// Instantiate the pointer, then decodeTo the value.
 	setField(outPtrV, reflect.New(outPtrV.Type().Elem()))
 	if err := s.decodeTo(encodedPtrV.Elem(), outPtrV.Elem()); err != nil {
-		return fmt.Errorf("convertFromPointerValue: %w", err)
+		return errProps.Extend(err)
 	}
 
 	// Store the decoded value for the pointer so we can reuse it later.

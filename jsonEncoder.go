@@ -47,6 +47,8 @@ func NewJSONEncoder(options ...MarshalJSONOption) *JSONEncoder {
 //
 // See the package notes for restrictions, limitations and options.
 func (s *JSONEncoder) Encode(in any) ([]byte, error) {
+	errProps := errProps()
+
 	var (
 		inV     = reflect.ValueOf(in)
 		encoded any
@@ -57,14 +59,14 @@ func (s *JSONEncoder) Encode(in any) ([]byte, error) {
 
 		encodedV, err := s.encode(inV)
 		if err != nil {
-			return nil, fmt.Errorf("MarshalJSON: %w", err)
+			return nil, errProps.Extend(err)
 		}
 		encoded = encodedV.Interface()
 	}
 
 	encodedBytes, err := s.jsonMarshalInternal(encoded)
 	if err != nil {
-		return nil, fmt.Errorf("MarshalJSON: %w", err)
+		return nil, errProps.Extend(err)
 	}
 
 	// Wrap the encoded value.
@@ -95,6 +97,8 @@ func (s *JSONEncoder) jsonMarshalInternal(v any) ([]byte, error) {
 
 // Encodes the fromV and writes it to the encodedV.
 func (s *JSONEncoder) encodeTo(originalV, encodedV reflect.Value) error {
+	errProps := errProps()
+
 	var (
 		originalT = originalV.Type()
 		encodedT  = encodedV.Type()
@@ -108,8 +112,8 @@ func (s *JSONEncoder) encodeTo(originalV, encodedV reflect.Value) error {
 	if originalT.Implements(jsonMarshalerType) {
 		b, err := s.jsonMarshalInternal(originalV.Interface())
 		if err != nil {
-			return fmt.Errorf("encodeTo(): custom json.Marshal for %s failed: %w",
-				originalT.String(), err)
+			return errProps.Annotate(fmt.Errorf("custom json.Marshal for %s failed: %w",
+				originalT.String(), err))
 		}
 		setField(encodedV, reflect.ValueOf(json.RawMessage(b)))
 		return nil
@@ -153,10 +157,10 @@ func (s *JSONEncoder) encodeTo(originalV, encodedV reflect.Value) error {
 	}
 
 	if originalKind != encodedKind {
-		return fmt.Errorf(
-			"encodeTo(): expected values to be the same kind; received %v and %v",
+		return errProps.Annotate(fmt.Errorf(
+			"expected values to be the same kind; received %v and %v",
 			originalV.Type(), encodedV.Type(),
-		)
+		))
 	}
 
 	if originalKind == reflect.Map {
@@ -187,14 +191,14 @@ func (s *JSONEncoder) encodeTo(originalV, encodedV reflect.Value) error {
 				var err error
 				encodedKey, err = s.encode(originalKey)
 				if err != nil {
-					return fmt.Errorf("encodeTo(): %w", err)
+					return errProps.Extend(err)
 				}
 
 				// Note: JSON doesn't support multiline strings, so just encode to a
 				// single line rather than adding prefixes and indents.
 				encodedKeyBytes, err := json.Marshal(encodedKey.Interface())
 				if err != nil {
-					return fmt.Errorf("encodeTo(): %w", err)
+					return errProps.Extend(err)
 				}
 
 				encodedKey = reflect.ValueOf(string(encodedKeyBytes))
@@ -223,18 +227,20 @@ func (s *JSONEncoder) encodeTo(originalV, encodedV reflect.Value) error {
 
 // Encodes the original value for marhsaling to JSON.
 func (s *JSONEncoder) encode(fromV reflect.Value) (reflect.Value, error) {
+	errProps := errProps()
+
 	if fromV == zeroValue {
 		return zeroValue, nil
 	}
 
 	encodedT, err := encodedTypeFor(fromV.Type())
 	if err != nil {
-		return zeroValue, fmt.Errorf("encode(): %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	encodedV := reflect.New(encodedT).Elem()
 	if err := s.encodeTo(fromV, encodedV); err != nil {
-		return zeroValue, fmt.Errorf("encode(): %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	return encodedV, nil

@@ -41,11 +41,13 @@ type interfaceValue struct {
 //
 // If the input value is the nil interface, returns the zero value.
 func (s *JSONEncoder) encodeToInterfaceValue(inV reflect.Value) (out reflect.Value, err error) {
+	errProps := errProps()
+
 	if inV.Kind() != reflect.Interface {
-		return zeroValue, fmt.Errorf(
-			"encodeToInterfaceValue: expected value to be an interface; received %v (%T)",
+		return zeroValue, errProps.Annotate(fmt.Errorf(
+			"expected value to be an interface; received %v (%T)",
 			inV.Kind(), inV,
-		)
+		))
 	}
 
 	// nil interface
@@ -59,12 +61,12 @@ func (s *JSONEncoder) encodeToInterfaceValue(inV reflect.Value) (out reflect.Val
 	// Encode the underlying value to JSON.
 	encodedV, err := s.encode(decodedV)
 	if err != nil {
-		return zeroValue, fmt.Errorf("encodeToInterfaceValue: %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	encodedBytes, err := s.jsonMarshalInternal(encodedV.Interface())
 	if err != nil {
-		return zeroValue, fmt.Errorf("encodeToInterfaceValue: %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	// Pointers seem to have no package path or name, and the string
@@ -106,12 +108,14 @@ func (s *JSONEncoder) encodeToInterfaceValue(inV reflect.Value) (out reflect.Val
 //
 // Returns a zero reflect.Value if the interfaceValue is nil.
 func (s *JSONDecoder) decodeFromInterfaceValue(inV reflect.Value) (reflect.Value, error) {
+	errProps := errProps()
+
 	iv, ok := inV.Interface().(*interfaceValue)
 	if !ok {
-		return zeroValue, fmt.Errorf(
-			"decodeFromInterfaceValue(): expected value to be an *interfaceValue; received %T",
+		return zeroValue, errProps.Annotate(fmt.Errorf(
+			"expected value to be an *interfaceValue; received %T",
 			inV.Interface(),
-		)
+		))
 	}
 
 	// Nil interface
@@ -120,14 +124,14 @@ func (s *JSONDecoder) decodeFromInterfaceValue(inV reflect.Value) (reflect.Value
 	}
 
 	if s.config.typeResolver == nil {
-		return zeroValue, errors.New(
-			"decodeFromInterfaceValue(): a type resolver must be configured using WithTypeResolver() " +
-				"to resolve types to interface values")
+		return zeroValue, errProps.Annotate(errors.New(
+			"a type resolver must be configured using WithTypeResolver() " +
+				"to resolve types to interface values"))
 	}
 
 	resolvedT, err := s.config.typeResolver.ResolveType(iv.PkgPath, iv.TypeName, iv.TypeString)
 	if err != nil {
-		return zeroValue, fmt.Errorf("decodeFromInterfaceValue(): %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	// Add the pointer indirections recorded in the pointer depth.
@@ -138,12 +142,12 @@ func (s *JSONDecoder) decodeFromInterfaceValue(inV reflect.Value) (reflect.Value
 
 	encodedT, err := encodedTypeFor(decodedT)
 	if err != nil {
-		return zeroValue, fmt.Errorf("decodeFromInterfaceValue(): %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	encodedPtrV := reflect.New(encodedT)
 	if err := json.Unmarshal(iv.Value, encodedPtrV.Interface()); err != nil {
-		return zeroValue, fmt.Errorf("decodeFromInterfaceValue(): %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	var (
@@ -151,7 +155,7 @@ func (s *JSONDecoder) decodeFromInterfaceValue(inV reflect.Value) (reflect.Value
 		decodedV = reflect.New(decodedT).Elem()
 	)
 	if err := s.decodeTo(encodedV, decodedV); err != nil {
-		return zeroValue, fmt.Errorf("decodeFromInterfaceValue(): %w", err)
+		return zeroValue, errProps.Extend(err)
 	}
 
 	return decodedV, nil
